@@ -11,7 +11,7 @@ app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(64) #获取加密密
 
 api = restful.Api(app)
 
-api.add_resource(Login,'/login')
+api.add_resource(Login,'/')
 
 if __name__ == '__main__' :
 	app.run(debug=True)

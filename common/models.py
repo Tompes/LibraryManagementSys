@@ -1,12 +1,15 @@
 # coding: utf-8
+# DataBase Course Design for CSZ2018001 of Yangtze University
+# Design and Coding by Tompes
+# Github: https://Github.com/Tompes/LibraryManagementSys
+
+# This part codes are generate by using flask-sqlacodegen plugin (Awesome Tool!!!)
+from config.dbconfig import db
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, LargeBinary, Numeric, SmallInteger, Text, Unicode
-from sqlalchemy.dialects.mssql.base import BIT, MONEY
+from sqlalchemy.dialects.mssql.base import BIT , MONEY
 from sqlalchemy.schema import FetchedValue
 from sqlalchemy.orm import relationship
-from flask_sqlalchemy import SQLAlchemy
 
-
-db = SQLAlchemy()
 
 
 class TbBook(db.Model):
@@ -22,7 +25,7 @@ class TbBook(db.Model):
     bkCatalog = db.Column(db.Unicode(30))
     bkLanguage = db.Column(db.SmallInteger)
     bkPages = db.Column(db.Integer)
-    bkPrice = db.Column(db.MONEY)
+    bkPrice = db.Column(MONEY)
     bkDateIn = db.Column(db.DateTime)
     bkBrief = db.Column(db.Text(2147483647, 'Chinese_PRC_CI_AS'))
     bkCover = db.Column(db.LargeBinary)
@@ -40,9 +43,9 @@ class TbBorrow(db.Model):
     ldDateRetPlan = db.Column(db.DateTime)
     ldDateRetAct = db.Column(db.DateTime)
     ldOverDay = db.Column(db.Integer)
-    ldOverMoney = db.Column(db.MONEY)
-    ldPunishMoney = db.Column(db.MONEY)
-    lsHasReturn = db.Column(db.BIT, server_default=db.FetchedValue())
+    ldOverMoney = db.Column(MONEY)
+    ldPunishMoney = db.Column(MONEY)
+    lsHasReturn = db.Column(BIT, server_default=db.FetchedValue())
     OperatorLend = db.Column(db.Unicode(20))
     OperatorRet = db.Column(db.Unicode(20))
 
