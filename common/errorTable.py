@@ -1,0 +1,22 @@
+ERROR_NUM = {
+	'LoginFail':{'error':1,'msg':'用户名密码错误!'},
+	'queryFail':{'error':2,'msg':'数据查询失败！'},
+	'failToCreateUser':{'error':3,'msg':'创建用户失败!'},
+	'paramsErr':{'error':4,'msg':'参数错误！'},
+	'userNotExist':{'error':5,'msg':'用户不存在！'},
+	'failToUpdateUser':{'error':6,'msg':'更新用户信息失败！'},
+	'emailRefuse':{'error':7,'msg':'邮件格式错误！'},
+	'failToDeleteUser':{'error':8,'msg':'删除用户失败！'},
+	'failToAddBooks':{'error':9,'msg':'新书上架失败！'},
+	'bookNotExist':{'error':10,'msg':'书籍不存在！'},
+	'failToUpdateBook':{'error':11,'msg':'更新书籍信息失败！'},
+	'failToDeleteBook':{'error':12,'msg':'删除书籍失败！'},
+	'borrowSegmentNotExist':{'error':13,'msg':'借书记录不存在！'},
+	'bookStatusErr':{'error':14,'msg':'书籍状态不可借！'},
+	'canNotBorrowAnyMore':{'error':15,'msg':'借书数量已达上限！'},
+	'failToBorrowBook':{'error':16,'msg':'借书失败！'},
+	'failToUpdateBorrowSegment':{'error':17,'msg':'修改借书信息失败！'},
+	'unknow':{'error':-1,'msg':'UnKnow Error 1'},
+	'e2':{'error':-2,'msg':''},
+	'SQLOperate':{'error':-3,'msg':'Internal SQL Operational Error'}
+}

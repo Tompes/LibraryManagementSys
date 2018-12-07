@@ -2,10 +2,10 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
 dbConf = {
-	'userName':'sa',
-	'password':'12345677',
-	'Server'  :'.',
-	'dbName'  :'BooksDatabase'
+	'userName' : 'sa',
+	'password' : '12345677',
+	'Server'   : '.',
+	'dbName'   : 'BooksDatabase'
 }
 
 dbURI = 'mssql+pymssql://{0}:{1}@{2}/{3}'.format(

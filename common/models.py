@@ -6,10 +6,10 @@
 # This part codes are generate by using flask-sqlacodegen plugin (Awesome Tool!!!)
 from config.dbconfig import db
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, LargeBinary, Numeric, SmallInteger, Text, Unicode
-from sqlalchemy.dialects.mssql.base import BIT , MONEY
+from sqlalchemy.dialects.mssql.base import BIT, MONEY
+from sqlalchemy.dialects.mssql.base import BIT, MONEY
 from sqlalchemy.schema import FetchedValue
 from sqlalchemy.orm import relationship
-
 
 
 class TbBook(db.Model):
@@ -28,7 +28,7 @@ class TbBook(db.Model):
     bkPrice = db.Column(MONEY)
     bkDateIn = db.Column(db.DateTime)
     bkBrief = db.Column(db.Text(2147483647, 'Chinese_PRC_CI_AS'))
-    bkCover = db.Column(db.LargeBinary)
+    bkCover = db.Column(db.String(100))
     bkStatus = db.Column(db.Unicode(2))
 
 
@@ -64,10 +64,10 @@ class TbReader(db.Model):
     rdPhone = db.Column(db.Unicode(25))
     rdEmail = db.Column(db.Unicode(25))
     rdDateReg = db.Column(db.DateTime)
-    rdPhoto = db.Column(db.LargeBinary)
+    rdPhoto = db.Column(db.String(100, 'Chinese_PRC_CI_AS'))
     rdStatus = db.Column(db.Unicode(2))
     rdBorrowQty = db.Column(db.Integer, server_default=db.FetchedValue())
-    rdPwd = db.Column(db.Unicode(20), server_default=db.FetchedValue())
+    rdPwd = db.Column(db.Unicode(36), server_default=db.FetchedValue())
     rdAdminRoles = db.Column(db.SmallInteger, server_default=db.FetchedValue())
 
     Tb_ReaderType = db.relationship('TbReaderType', primaryjoin='TbReader.rdType == TbReaderType.rdType', backref='tb_readers')
