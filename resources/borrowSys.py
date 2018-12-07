@@ -74,12 +74,13 @@ class Borrow(Resource):
 		parser.add_argument('rdID', type=int, required=True, help="params `rdID` refuse!")
 		parser.add_argument('bkID', type=int, required=True, help="params `bkID` refuse!")
 		parser.add_argument('OperatorLend', type=str, required=True, help="params `OperatorLend` refuse!")
-		parser.add_argument('OperatorRet', type=str, required=True, help="params `OperatorRet` refuse!")
+		parser.add_argument('OperatorRet', type=str, required=False, help="params `OperatorRet` refuse!")
 
 		args = parser.parse_args(strict=True)
-		try:  # 查看书籍和
-			reader = TbReader.query.filter_by(rdID=args['rdID'])
-			book = TbBook.query.filter_by(bkID=args['bkID'])
+
+		try:  # 查看书籍和用户状态
+			reader = TbReader.query.filter_by(rdID=args['rdID']).first()
+			book = TbBook.query.filter_by(bkID=args['bkID']).first()
 			if reader is None:
 				return ERROR_NUM['userNotExist']
 			if book is None:
@@ -88,17 +89,18 @@ class Borrow(Resource):
 			reader_type = TbReaderType.query.filter_by(rdType=reader.rdType).first()
 			if reader_type.CanLendQty - reader.rdBorrowQty <= 0:  # 借书数量到上限
 				return ERROR_NUM['canNotBorrowAnyMore']
-			if book.bkStatus is not '在馆':  # 书籍状态不在馆
+			if book.bkStatus != '在馆':  # 书籍状态不在馆
 				return ERROR_NUM['bookStatusErr']
 		except:
 			return ERROR_NUM['SQLOperate']
-		timeArray = time.localtime(time.time())
+		timeStamp = time.time()
+		timeArray = time.localtime(timeStamp)
 		segment = TbBorrow(
 			rdID=args['rdID'],
 			bkID=args['bkID'],
 			ldContinueTimes=0,
 			ldDateOut=time.strftime('%Y-%m-%d %H:%M:%S', timeArray),
-			ldDateRetPlan=time.strftime('%Y-%m-%d %H:%M:%S', timeArray + (60 * 60 * 24 * 30)),  # 一个月时长
+			ldDateRetPlan=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timeStamp + (60 * 60 * 24 * 30))),  # 一个月时长
 			ldDateRetAct=None,
 			ldOverDay=0,
 			ldOverMoney=0.00,
@@ -107,11 +109,13 @@ class Borrow(Resource):
 			OperatorLend=args['OperatorLend'],  # 借书操作员
 			OperatorRet=None
 		)
+
 		try:
 			db.session.add(segment)
 			db.session.flush()
 			bk = TbBook.query.filter_by(bkID=args['bkID']).update({'bkStatus': bookStatusTable[0]})
-			rd = TbReader.query.filter_by(rdID=args['rdID'])
+			bkInfo = TbBook.query.filter_by(bkID=args['bkID']).first()
+			rd = TbReader.query.filter_by(rdID=args['rdID']).first()
 			rdExec = TbReader.query.filter_by(rdID=args['rdID']).update({'rdBorrowQty': rd.rdBorrowQty + 1})
 			if bk is 0:
 				db.session.rollback()
@@ -126,7 +130,7 @@ class Borrow(Resource):
 				'borrowID': segment.BorrowID,
 				'rdID': segment.rdID,
 				'bkID': segment.bkID,
-				'bkName': bk.bkName
+				'bkName': bkInfo.bkName
 			}
 		except:
 			db.session.rollback()
@@ -137,13 +141,13 @@ class Borrow(Resource):
 			return ERROR_NUM['paramsErr']
 		parser = reqparse.RequestParser(trim=True)
 		parser.add_argument('ldContinueTimes', type=int, required=False, help="params `ldContinueTimes` refuse!")
-		parser.add_argument('ldDateRetPlan', type=int, required=False, help="params `ldDateRetPlan` refuse!")
+		parser.add_argument('ldDateRetPlan', type=str, required=False, help="params `ldDateRetPlan` refuse!")
 		# parser.add_argument('ldOverDay', type=int, required=True, help="params `rdID` refuse!")
-		parser.add_argument('ldOverMoney', type=int, required=False, help="params `ldOverMoney` refuse!")
-		parser.add_argument('ldPunishMoney', type=int, required=False, help="params `ldPunishMoney` refuse!")
+		parser.add_argument('ldOverMoney', type=float, required=False, help="params `ldOverMoney` refuse!")
+		parser.add_argument('ldPunishMoney', type=float, required=False, help="params `ldPunishMoney` refuse!")
 		parser.add_argument('lsHasReturn', type=int, required=False, help="params `lsHasReturn` refuse!")
-		parser.add_argument('OperatorLend', type=int, required=False, help="params `OperatorLend` refuse!")
-		parser.add_argument('OperatorRet', type=int, required=False, help="params `OperatorRet` refuse!")
+		parser.add_argument('OperatorLend', type=str, required=False, help="params `OperatorLend` refuse!")
+		parser.add_argument('OperatorRet', type=str, required=False, help="params `OperatorRet` refuse!")
 
 		args = parser.parse_args(strict=True)
 		putData = {}
@@ -158,6 +162,7 @@ class Borrow(Resource):
 			execute = TbBorrow.query.filter_by(borrowID=borrowID).update(putData)
 			if execute is 0:
 				return ERROR_NUM['failToUpdateBorrowSegment']
-			return {'error':0,'msg':'更新成功！','borrowID':borrowID,'updateData':putData}
+			return {'error': 0, 'msg': '更新成功！', 'borrowID': borrowID, 'updateData': putData}
 		except:
 			return ERROR_NUM['SQLOperate']
+

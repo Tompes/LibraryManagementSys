@@ -100,21 +100,21 @@ class User(Resource):
 		m = md5()
 		rdpwd = m.update(args['rdPwd'].strip().encode("utf8"))
 		rdpwd = m.hexdigest()
+		segment = TbReader(
+			rdName=args['rdName'].strip(),
+			rdSex=args['rdSex'].strip(),
+			rdType=args['rdType'],
+			rdDept=args['rdDept'].strip(),
+			rdPhone=args['rdPhone'].strip(),
+			rdEmail=args['rdEmail'].strip(),
+			rdDateReg=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
+			rdPhoto=headPic.strip(),
+			rdStatus=status,
+			rdBorrowQty=0,
+			rdPwd=rdpwd,
+			rdAdminRoles=args['rdAdminRoles'],
+		)
 		try:
-			segment = TbReader(
-				rdName=args['rdName'].strip(),
-				rdSex=args['rdSex'].strip(),
-				rdType=args['rdType'],
-				rdDept=args['rdDept'].strip(),
-				rdPhone=args['rdPhone'].strip(),
-				rdEmail=args['rdEmail'].strip(),
-				rdDateReg=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
-				rdPhoto=headPic.strip(),
-				rdStatus=status,
-				rdBorrowQty=0,
-				rdPwd=rdpwd,
-				rdAdminRoles=args['rdAdminRoles'],
-			)
 			db.session.add(segment)
 			db.session.flush()
 			db.session.commit()

@@ -113,11 +113,10 @@ class Book(Resource):
 			bkStatus=bookStatusTable[args['bkStatus']]
 		)
 
-		db.session.add(segment)
-		db.session.flush()
-		db.session.commit()
-
 		try:
+			db.session.add(segment)
+			db.session.flush()
+			db.session.commit()
 			return {
 				'error': 0, 'msg': '新书上架成功！',
 				'bkID': segment.bkID,

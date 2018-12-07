@@ -35,7 +35,7 @@ class TbBook(db.Model):
 class TbBorrow(db.Model):
     __tablename__ = 'Tb_Borrow'
 
-    BorrowID = db.Column(db.Numeric(12, 0), primary_key=True)
+    BorrowID = db.Column(db.Integer, primary_key=True)
     rdID = db.Column(db.ForeignKey('Tb_Reader.rdID'))
     bkID = db.Column(db.ForeignKey('Tb_Book.bkID'))
     ldContinueTimes = db.Column(db.Integer, server_default=db.FetchedValue())

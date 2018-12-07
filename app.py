@@ -9,7 +9,7 @@ from flask import make_response
 from resources.loginSys import Login
 from resources.userSys import UserList,User
 from resources.booksSys import BookList,Book
-from resources.borrowSys import BorrowList
+from resources.borrowSys import BorrowList,Borrow
 from hashlib import md5
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(64) #获取加密密钥
@@ -40,6 +40,7 @@ api.add_resource(User,'/user/<int:rdID>','/user')
 api.add_resource(BookList,'/booklist')
 api.add_resource(Book,'/book/<int:bkID>','/book')
 api.add_resource(BorrowList,'/borrowlist')
+api.add_resource(Borrow,'/borrow/<int:borrowID>','/borrow')
 api.add_resource(test,'/test')
 
 
