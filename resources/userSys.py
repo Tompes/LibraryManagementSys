@@ -12,8 +12,8 @@ import re
 from config.dbconfig import db
 
 
-class UserList(Resource,search=None):
-	def get(self):
+class UserList(Resource):
+	def get(self,search=None):
 		try:
 			data = TbReader.query.all()
 			if data is None:
