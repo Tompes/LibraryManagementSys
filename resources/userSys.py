@@ -12,7 +12,7 @@ import re
 from config.dbconfig import db
 
 
-class UserList(Resource):
+class UserList(Resource,search=None):
 	def get(self):
 		try:
 			data = TbReader.query.all()
@@ -50,6 +50,20 @@ class User(Resource):
 			user = TbReader.query.filter_by(rdID=rdID).first()
 			if user is None:
 				return ERROR_NUM['userNotExist']
+			doNotReturnedQuery = TbBorrow.query.filter_by(rdID=rdID,lsHasReturn=0).all()
+			doNotReturnedBooks = []
+			for item in doNotReturnedQuery:
+				book = TbBook.query.filter_by(bkID=item.bkID).first()
+				verb = {
+					'borrowID':item.BorrowID,
+					'bkID':item.bkID,
+					'bkName':book.bkName,
+					'ldContinueTimes':item.ldContinueTimes,
+					'ldDateOut':item.ldDateOut,
+					'ldDateRetPlan':item.ldDateRetPlan,
+					'ldOverDay':item.ldOverDay,
+				}
+				doNotReturnedBooks.append(verb)
 
 			userInfo = {
 				'error': 0,
@@ -62,7 +76,8 @@ class User(Resource):
 				'rdEmail': user.rdEmail,
 				'rdPhoto': user.rdPhoto,
 				'rdStatus': user.rdStatus,
-				'rdAdminRoles': user.rdAdminRoles
+				'rdAdminRoles': user.rdAdminRoles,
+				'doNotReturnedBooks':doNotReturnedBooks
 			}
 			return  {'error':0,'userInfo':userInfo}
 

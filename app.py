@@ -39,7 +39,7 @@ api.add_resource(UserList,'/userlist')
 api.add_resource(User,'/user/<int:rdID>','/user')
 api.add_resource(BookList,'/booklist')
 api.add_resource(Book,'/book/<int:bkID>','/book')
-api.add_resource(BorrowList,'/borrowlist')
+api.add_resource(BorrowList,'/borrowlist/<int:lsHasReturn>','/borrowlist')
 api.add_resource(Borrow,'/borrow/<int:borrowID>','/borrow')
 api.add_resource(test,'/test')
 

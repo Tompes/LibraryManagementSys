@@ -13,9 +13,20 @@ from config.dbconfig import db
 
 
 class BorrowList(Resource):
-	def get(self):
+	def get(self, lsHasReturn=None):
+		type = '所有记录'
 		try:
-			borrow = TbBorrow.query.all()
+			borrow = []
+			if lsHasReturn is None:
+				borrow = TbBorrow.query.all()
+			elif lsHasReturn == 0:  # 查未归还的
+				borrow = TbBorrow.query.filter_by(lsHasReturn=0)
+				type = '所有未还记录'
+			elif lsHasReturn == 1:
+				borrow = TbBorrow.query.filter_by(lsHasReturn=1)
+				type = '所有已还记录'
+			else:
+				return ERROR_NUM['paramsErr']
 			borrowList = []
 			for item in borrow:
 				verb = {
@@ -23,18 +34,18 @@ class BorrowList(Resource):
 					'rdID': item.rdID,
 					'bkID': item.bkID,
 					'ldContinueTimes': item.ldContinueTimes,
-					'ldDateOut': item.ldDateOut,
-					'ldDateRetPlan': item.ldDateRetPlan,
-					'ldDateRetAct': item.ldDateRetAct,
+					'ldDateOut': str(item.ldDateOut),  # 类型转换 datetime -> str
+					'ldDateRetPlan': str(item.ldDateRetPlan),  # 类型转换 datetime -> str
+					'ldDateRetAct': str(item.ldDateRetAct),  # 类型转换 datetime -> str
 					'ldOverDay': item.ldOverDay,
-					'ldOverMoney': item.ldOverMoney,
-					'ldPunishMoney': item.ldPunishMoney,
+					'ldOverMoney': float(item.ldOverMoney),  # 类型转换 MONEY -> float
+					'ldPunishMoney': float(item.ldPunishMoney),  # 类型转换 MONEY -> float
 					'lsHasReturn': item.lsHasReturn,
 					'OperatorLend': item.OperatorLend,
 					'OperatorRet': item.OperatorRet
 				}
 				borrowList.append(verb)
-			return {'error': 0, 'borrowList': borrowList}
+			return {'error': 0, 'type': type, 'borrowList': borrowList}
 		except:
 			return ERROR_NUM['queryFail']
 
@@ -136,7 +147,7 @@ class Borrow(Resource):
 			db.session.rollback()
 			return ERROR_NUM['failToBorrowBook']
 
-	def put(self, borrowID=None):
+	def put(self, borrowID=None):  # 续借、修改借阅信息
 		if borrowID is None:
 			return ERROR_NUM['paramsErr']
 		parser = reqparse.RequestParser(trim=True)
@@ -166,3 +177,61 @@ class Borrow(Resource):
 		except:
 			return ERROR_NUM['SQLOperate']
 
+	def delete(self, borrowID=None):  # 还书功能。 借书元组不用删除，永久保存.
+		parser = reqparse.RequestParser(trim=True)
+		parser.add_argument('OperatorRet', type=str, required=True, help="params `OperatorRet` refuse!")
+		args = parser.parse_args(strict=True)
+
+		if borrowID is None:
+			return ERROR_NUM['paramsErr']
+
+		try:
+			borrow = TbBorrow.query.filter_by(BorrowID=borrowID).first()
+			if borrow is None:
+				return ERROR_NUM['borrowSegmentNotExist']
+			elif borrow.lsHasReturn is True:
+				return ERROR_NUM['bookHasBeenReturned']
+			reader = TbReader.query.filter_by(rdID=borrow.rdID).first()
+			if reader is None:
+				return ERROR_NUM['userNotExist']
+			book = TbBook.query.filter_by(bkID=borrow.bkID).first()
+			if book is None:
+				return ERROR_NUM['bookNotExist']
+
+			bkRet = TbBorrow.query.filter_by(BorrowID=borrowID).update({
+				'ldDateRetAct': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())),
+				'OperatorRet': args['OperatorRet'],
+				'lsHasReturn': 1
+			})
+			if bkRet is 0:
+				db.session.rollback()
+				return ERROR_NUM['failToUpdateBorrowSegment']
+			bkStatusChange = TbBook.query.filter_by(bkID=borrow.bkID).update({'bkStatus': bookStatusTable[1]})
+			if bkStatusChange is 0:
+				db.session.rollback()
+				return ERROR_NUM['failToBorrowBook']
+			rdBrQty = TbReader.query.filter_by(rdID=borrow.rdID).update({'rdBorrowQty': reader.rdBorrowQty - 1})
+			if rdBrQty is 0:
+				db.session.rollback()
+				return ERROR_NUM['failToUpdateUser']
+			db.session.commit()
+			return {
+				'error': 0,
+				'msg': '还书成功',
+				'borrowInfo': {
+					'borrowID': borrowID,
+					'rdID': reader.rdID,
+					'rdName': reader.rdName,
+					'bkID': book.bkID,
+					'bkName': book.bkName,
+					'OperatorRet': args['OperatorRet']
+				},
+			}
+		except:
+			db.session.rollback()
+			return ERROR_NUM['failToReturnBook']
+
+# class BookReturn(Resource):
+# 	def put(self,borrowID=None):
+# 		if borrowID is None:
+# 			return ERROR_NUM['borrowSegmentNotExist']

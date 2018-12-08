@@ -16,6 +16,8 @@ ERROR_NUM = {
 	'canNotBorrowAnyMore':{'error':15,'msg':'借书数量已达上限！'},
 	'failToBorrowBook':{'error':16,'msg':'借书失败！'},
 	'failToUpdateBorrowSegment':{'error':17,'msg':'修改借书信息失败！'},
+	'failToReturnBook':{'error':18,'msg':'还书失败！'},
+	'bookHasBeenReturned':{'error':19,'msg':'该记录已还，无需二次操作！'},
 	'unknow':{'error':-1,'msg':'UnKnow Error 1'},
 	'e2':{'error':-2,'msg':''},
 	'SQLOperate':{'error':-3,'msg':'Internal SQL Operational Error'}
