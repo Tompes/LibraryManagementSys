@@ -5,7 +5,7 @@ from common.models import TbReader
 from common.models import TbBorrow
 from hashlib import md5
 from common.errorTable import ERROR_NUM
-from common.common import defaultPhoto, userStatusTable, emailReg
+from common.common import defaultPhoto, userStatusTable, emailReg, addslashes
 import sqlalchemy as SQL
 import time
 import re
@@ -13,33 +13,57 @@ from config.dbconfig import db
 
 
 class UserList(Resource):
-	def get(self,search=None):
+	def get(self, search=None):
+		parser = reqparse.RequestParser(trim=True)
+		parser.add_argument('rdName', type=str, required=False, help="params `rdName` refuse!")
+		parser.add_argument('rdDept', type=str, required=False, help="params `rdDept` refuse!")
+		parser.add_argument('rdPhone', type=str, required=False, help="params `rdPhone` refuse!")
+		parser.add_argument('rdEmail', type=str, required=False, help="params `rdPhone` refuse!")
+		args = parser.parse_args(strict=True)
+
+		filterArgs = {}
+		for item in args:
+			if args[item] is not None and args[item] is not '':
+				filterArgs[item] = args[item]
+		t = ''
+		i = 0
+		for k in filterArgs.keys():
+			if i == 0:
+				t += k + " like '%" + addslashes(filterArgs[k]) + "%' "
+			else:
+				t += " and " + k + " like '%" + addslashes(filterArgs[k]) + "%' "
+			i += 1
 		try:
-			data = TbReader.query.all()
+			data = []
+			if search is None:
+				data = TbReader.query.all()
+			if search == 'search':
+				print('select * from Tb_Reader where {0}'.format(t))
+				data = db.session.execute('select * from Tb_Reader where {0}'.format(t))
+
 			if data is None:
 				return ERROR_NUM['queryFail']
 			userList = []
 			for item in data:
-				user = {}
-				user['rdID'] = item.rdID
-				user['rdName'] = item.rdName
-				user['rdSex'] = item.rdSex
-				user['rdType'] = item.rdType
-				user['rdDept'] = item.rdDept
-				user['rdPhone'] = item.rdPhone
-				user['rdEmail'] = item.rdEmail
-				user['rdDateReg'] = str(item.rdDateReg)
-				user['rdPhoto'] = item.rdPhoto
-				user['rdStatus'] = item.rdStatus
-				user['rdBorrowQty'] = item.rdBorrowQty
+				user = {
+					'rdID': item.rdID,
+					'rdName': item.rdName,
+					'rdSex': item.rdSex,
+					'rdType': item.rdType,
+					'rdDept': item.rdDept,
+					'rdPhone': item.rdPhone,
+					'rdEmail': item.rdEmail,
+					'rdDateReg': str(item.rdDateReg),
+					'rdPhoto': item.rdPhoto,
+					'rdStatus': item.rdStatus,
+					'rdBorrowQty': item.rdBorrowQty,
+					'rdAdminRoles': item.rdAdminRoles
+				}
 				# user['rdPwd'] = item.rdPwd
-				user['rdAdminRoles'] = item.rdAdminRoles
 				userList.append(user)
 			return {'error': 0, 'userList': userList}, 200
-		except SQL.exc.OperationalError as e:
-			return ERROR_NUM['SQLOperate'], 500
-
-
+		except :
+			return ERROR_NUM['failToGetUserList'], 500
 
 
 class User(Resource):
@@ -50,18 +74,18 @@ class User(Resource):
 			user = TbReader.query.filter_by(rdID=rdID).first()
 			if user is None:
 				return ERROR_NUM['userNotExist']
-			doNotReturnedQuery = TbBorrow.query.filter_by(rdID=rdID,lsHasReturn=0).all()
+			doNotReturnedQuery = TbBorrow.query.filter_by(rdID=rdID, lsHasReturn=0).all()
 			doNotReturnedBooks = []
 			for item in doNotReturnedQuery:
 				book = TbBook.query.filter_by(bkID=item.bkID).first()
 				verb = {
-					'borrowID':item.BorrowID,
-					'bkID':item.bkID,
-					'bkName':book.bkName,
-					'ldContinueTimes':item.ldContinueTimes,
-					'ldDateOut':item.ldDateOut,
-					'ldDateRetPlan':item.ldDateRetPlan,
-					'ldOverDay':item.ldOverDay,
+					'borrowID': item.BorrowID,
+					'bkID': item.bkID,
+					'bkName': book.bkName,
+					'ldContinueTimes': item.ldContinueTimes,
+					'ldDateOut': item.ldDateOut,
+					'ldDateRetPlan': item.ldDateRetPlan,
+					'ldOverDay': item.ldOverDay,
 				}
 				doNotReturnedBooks.append(verb)
 
@@ -77,9 +101,9 @@ class User(Resource):
 				'rdPhoto': user.rdPhoto,
 				'rdStatus': user.rdStatus,
 				'rdAdminRoles': user.rdAdminRoles,
-				'doNotReturnedBooks':doNotReturnedBooks
+				'doNotReturnedBooks': doNotReturnedBooks
 			}
-			return  {'error':0,'userInfo':userInfo}
+			return {'error': 0, 'userInfo': userInfo}
 
 		except SQL.exc.OperationalError as e:
 			return ERROR_NUM['SQLOperate'], 500
@@ -106,7 +130,7 @@ class User(Resource):
 		else:
 			headPic = defaultPhoto['woman']
 
-		if args['rdStatus'] > len(userStatusTable) :
+		if args['rdStatus'] > len(userStatusTable):
 			return ERROR_NUM['paramsErr']
 		if re.match(emailReg, args['rdEmail']) is False:
 			return ERROR_NUM['emailRefuse']
@@ -127,16 +151,16 @@ class User(Resource):
 			rdStatus=status,
 			rdBorrowQty=0,
 			rdPwd=rdpwd,
-			rdAdminRoles=args['rdAdminRoles'],
+			rdAdminRoles=args['rdAdminRoles']
 		)
 		try:
 			db.session.add(segment)
 			db.session.flush()
 			db.session.commit()
-			return {'error': 0, 'msg': 'Yes','rdId':segment.rdID}
-		except :
+			return {'error': 0, 'msg': 'Yes', 'rdId': segment.rdID}
+		except:
 			db.session.rollback()  # 回滚
-			return ERROR_NUM['failToCreateUser'],400
+			return ERROR_NUM['failToCreateUser'], 400
 
 	def put(self, rdID=None):
 		if rdID is None:
@@ -179,7 +203,7 @@ class User(Resource):
 			if execute is 0:
 				return ERROR_NUM['failToUpdateUser'], 400
 			db.session.commit()
-			return {'error': 0, 'msg': '更新用户信息成功！','rdID':rdID,'updateData':putData}
+			return {'error': 0, 'msg': '更新用户信息成功！', 'rdID': rdID, 'updateData': putData}
 		except SQL.exc.OperationalError as e:
 			db.session.rollback()
 			return ERROR_NUM['SQLOperate'], 500
@@ -193,8 +217,7 @@ class User(Resource):
 				db.session.rollback()
 				return ERROR_NUM['failToDeleteUser']
 			db.session.commit()
-			return {'error':'0','msg':'删除用户成功！','rdID':rdID}
-		except :
+			return {'error': '0', 'msg': '删除用户成功！', 'rdID': rdID}
+		except:
 			db.session.rollback()
-			return ERROR_NUM['SQLOperate'],500
-
+			return ERROR_NUM['SQLOperate'], 500

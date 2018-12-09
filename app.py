@@ -35,9 +35,9 @@ class test(restful.Resource):
 
 api.add_resource(index,'/')
 api.add_resource(Login,'/login')
-api.add_resource(UserList,'/userlist')
+api.add_resource(UserList,'/userlist/<string:search>','/userlist')
 api.add_resource(User,'/user/<int:rdID>','/user')
-api.add_resource(BookList,'/booklist')
+api.add_resource(BookList,'/booklist/<string:search>','/booklist')
 api.add_resource(Book,'/book/<int:bkID>','/book')
 api.add_resource(BorrowList,'/borrowlist/<int:lsHasReturn>','/borrowlist')
 api.add_resource(Borrow,'/borrow/<int:borrowID>','/borrow')

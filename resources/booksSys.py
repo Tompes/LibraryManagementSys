@@ -5,7 +5,7 @@ from common.models import TbReader
 from common.models import TbBorrow
 from hashlib import md5
 from common.errorTable import ERROR_NUM
-from common.common import defaultBookCover, bookStatusTable
+from common.common import defaultBookCover, bookStatusTable,addslashes
 import sqlalchemy as SQL
 import time
 import re
@@ -13,9 +13,35 @@ from config.dbconfig import db
 
 class BookList(Resource):
 	def get(self,search=None):
+		parser = reqparse.RequestParser(trim=True)
+		parser.add_argument('bkName', type=str, required=False, help="params `bkName` refuse!")
+		parser.add_argument('bkAuthor', type=str, required=False, help="params `bkAuthor` refuse!")
+		parser.add_argument('bkDatePress', type=str, required=False, help="params `bkDatePress` refuse!")
+		parser.add_argument('bkBrief', type=str, required=False, help="params `bkBrief` refuse!")
+		parser.add_argument('bkPress', type=str, required=False, help="params `bkPress` refuse!")
+		parser.add_argument('bkCatalog', type=str, required=False, help="params `bkCatalog` refuse!")
 
+		args = parser.parse_args(strict=True)
+
+		filterArgs = {}
+		for item in args:
+			if args[item] is not None and args[item] is not '':
+				filterArgs[item] = args[item]
+		t = ''
+		i = 0
+		for k in filterArgs.keys():
+			if i == 0:
+				t += k + " like '%" + addslashes(filterArgs[k]) + "%' "
+			else:
+				t += " and " + k + " like '%" + addslashes(filterArgs[k]) + "%' "
+			i += 1
 		try:
-			books = TbBook.query.all()
+			books = []
+			if search is None:
+				books = TbBook.query.all()
+			if search == 'search':
+				print('select * from Tb_Book where {0}'.format(t))
+				books = db.session.execute('select * from Tb_Book where {0}'.format(t))
 			bookList = []
 			for item in books:
 				verb = {
