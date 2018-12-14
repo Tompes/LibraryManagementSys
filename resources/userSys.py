@@ -27,6 +27,8 @@ class UserList(Resource):
 				filterArgs[item] = args[item]
 		t = ''
 		i = 0
+		if len(filterArgs) == 0: #搜索模式未给参数
+			return ERROR_NUM['paramsErr']
 		for k in filterArgs.keys():
 			if i == 0:
 				t += k + " like '%" + addslashes(filterArgs[k]) + "%' "
@@ -62,10 +64,27 @@ class UserList(Resource):
 				# user['rdPwd'] = item.rdPwd
 				userList.append(user)
 			return {'error': 0, 'userList': userList}, 200
-		except :
+		except:
 			return ERROR_NUM['failToGetUserList'], 500
 
-
+class UserTypeList(Resource):
+	def get(self):
+		try:
+			typeList = []
+			readerType = TbReaderType.query.all()
+			for item in readerType:
+				verb = {
+					'rdType' : item.rdType,
+					'rdTypeName' : item.rdType,
+					'CanLendQty' :item.rdType,
+					'CanLendDay' :item.rdType,
+					'CanContinueTimes' :item.rdType,
+					'PunishRate' :item.rdType,
+					'DateValid' :item.rdType,
+				}
+				typeList.append(verb)
+		except:
+			return ERROR_NUM['failTOGetTypeList']
 class User(Resource):
 	def get(self, rdID=None):
 		if rdID is None:
@@ -184,7 +203,7 @@ class User(Resource):
 
 		putData = {}
 		for item in args:
-			if args[item] is not None:
+			if args[item] is not None and args[item]!= '':
 				if item == 'rdEmail' and re.match(emailReg, args['rdEmail']) == False:
 					return ERROR_NUM['paramsErr'], 400
 
@@ -192,9 +211,15 @@ class User(Resource):
 					if args['rdStatus'] > len(userStatusTable):
 						return ERROR_NUM['paramsErr'], 400
 					args[item] = userStatusTable[args[item]]
+				if item == 'rdPwd':
+					m = md5()
+					rdpwd = m.update(args[item].strip().encode("utf8"))
+					rdpwd = m.hexdigest()
+					args[item] = rdpwd
 
 				putData[item] = args[item].strip()
-
+		if len(putData)==0:
+			return ERROR_NUM['paramsErr'], 400
 		try:
 			user = TbReader.query.filter_by(rdID=rdID).first()
 			if user is None:

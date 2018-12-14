@@ -1,10 +1,11 @@
-# DataBase Course Design for CSZ2018001 of Yangtze University
+# DataBase Course Design for CSZ11801 of Yangtze University
 # Design and Coding by Tompes
 # Github: https://Github.com/Tompes/LibraryManagementSys
 
 import os
 from flask import Flask,render_template
 import flask_restful as restful
+from flask_cors import *
 from flask import make_response
 from resources.loginSys import Login
 from resources.userSys import UserList,User
@@ -13,7 +14,7 @@ from resources.borrowSys import BorrowList,Borrow
 from hashlib import md5
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(64) #获取加密密钥
-
+CORS(app, supports_credentials=True) #支持跨域请求
 api = restful.Api(app)
 
 class index(restful.Resource):

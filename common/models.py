@@ -28,7 +28,7 @@ class TbBook(db.Model):
     bkPrice = db.Column(MONEY)
     bkDateIn = db.Column(db.DateTime)
     bkBrief = db.Column(db.Text(2147483647, 'Chinese_PRC_CI_AS'))
-    bkCover = db.Column(db.String(100))
+    bkCover = db.Column(db.Text(2147483647, 'Chinese_PRC_CI_AS'))
     bkStatus = db.Column(db.Unicode(2))
 
 
