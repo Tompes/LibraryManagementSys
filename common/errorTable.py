@@ -20,6 +20,9 @@ ERROR_NUM = {
 	'bookHasBeenReturned':{'error':19,'msg':'该记录已还，无需二次操作！'},
 	'failToGetUserList':{'error':20,'msg':'获取用户列表失败！'},
 	'failTOGetTypeList':{'error':21,'msg':'获取用户类型列表失败！'},
+	'failToContinue':{'error':22,'msg':'续借失败！'},
+	'forbiddenOperation':{'error':23,'msg':'操作被禁止！'},
+	'limitOfArrival':{'error':23,'msg':'已到达上限值！'},
 	'unknow':{'error':-1,'msg':'UnKnow Error 1'},
 	'e2':{'error':-2,'msg':''},
 	'SQLOperate':{'error':-3,'msg':'Internal SQL Operational Error'}

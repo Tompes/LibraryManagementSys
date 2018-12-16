@@ -14,6 +14,8 @@ from config.dbconfig import db
 class BookList(Resource):
 	def get(self,search=None):
 		parser = reqparse.RequestParser(trim=True)
+		parser.add_argument('bkID', type=str, required=False, help="params `bkID` refuse!")
+		parser.add_argument('bkCode', type=str, required=False, help="params `bkCode` refuse!")
 		parser.add_argument('bkName', type=str, required=False, help="params `bkName` refuse!")
 		parser.add_argument('bkAuthor', type=str, required=False, help="params `bkAuthor` refuse!")
 		parser.add_argument('bkDatePress', type=str, required=False, help="params `bkDatePress` refuse!")
@@ -25,7 +27,7 @@ class BookList(Resource):
 
 		filterArgs = {}
 		for item in args:
-			if args[item] is not None and args[item] is not '':
+			if args[item] is not None and args[item] != '':
 				filterArgs[item] = args[item]
 		t = ''
 		i = 0

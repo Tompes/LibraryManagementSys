@@ -5,9 +5,11 @@ from common.models import TbReader
 from common.models import TbBorrow
 from hashlib import md5
 from common.errorTable import ERROR_NUM
-from common.common import defaultBookCover, bookStatusTable
+from common.common import defaultBookCover, bookStatusTable, userStatusTable
 import sqlalchemy as SQL
 import time
+from dateutil import parser as dateParser
+import datetime
 import re
 from config.dbconfig import db
 
@@ -111,7 +113,8 @@ class Borrow(Resource):
 			bkID=args['bkID'],
 			ldContinueTimes=0,
 			ldDateOut=time.strftime('%Y-%m-%d %H:%M:%S', timeArray),
-			ldDateRetPlan=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timeStamp + (60 * 60 * 24 * 30))),  # 一个月时长
+			ldDateRetPlan=time.strftime('%Y-%m-%d %H:%M:%S',
+			                            time.localtime(timeStamp + (60 * 60 * 24 * reader_type.CanLendDay))),  # 可借时长
 			ldDateRetAct=None,
 			ldOverDay=0,
 			ldOverMoney=0.00,
@@ -141,7 +144,8 @@ class Borrow(Resource):
 				'borrowID': segment.BorrowID,
 				'rdID': segment.rdID,
 				'bkID': segment.bkID,
-				'bkName': bkInfo.bkName
+				'bkName': bkInfo.bkName,
+				'ldDateRetPlan': segment.ldDateRetPlan
 			}
 		except:
 			db.session.rollback()
@@ -163,7 +167,7 @@ class Borrow(Resource):
 		args = parser.parse_args(strict=True)
 		putData = {}
 		for item in args:
-			if args[item] is not None:
+			if args[item] is not None and args[item] != '':
 				putData[item] = args[item]
 
 		try:
@@ -231,7 +235,37 @@ class Borrow(Resource):
 			db.session.rollback()
 			return ERROR_NUM['failToReturnBook']
 
-# class BookReturn(Resource):
-# 	def put(self,borrowID=None):
-# 		if borrowID is None:
-# 			return ERROR_NUM['borrowSegmentNotExist']
+
+class BookContinue(Resource):
+	def put(self, borrowID=None):
+		if borrowID is None:
+			return ERROR_NUM['borrowSegmentNotExist']
+		try:
+			borrow = TbBorrow.query.filter_by(BorrowID=borrowID).first()
+			if borrow is None:
+				return ERROR_NUM['borrowSegmentNotExist']
+			reader = TbReader.query.filter_by(rdID=borrow.rdID).first()
+			if reader is None:
+				return ERROR_NUM['userNotExist']
+			readerType = TbReaderType.query.filter_by(rdType=reader.rdType).first()
+
+			if borrow.ldContinueTimes >= readerType.CanContinueTimes:
+				return ERROR_NUM['limitOfArrival']
+			if reader.rdStatus != userStatusTable[1]:
+				return ERROR_NUM['forbiddenOperation']
+
+			continueDate = dateParser.parse(borrow.ldDateRetPlan) + datetime.timedelta(days=readerType.CanLendDay)
+			execute = TbBorrow.query.filter_by(BorrowID=borrowID).update({
+				'ldContinueTimes':borrow.ldContinueTimes+1,
+				'ldDateRetPlan':continueDate.strftime('%Y-%m-%d %H:%M:%S')
+			})
+			if execute is 0:
+				db.session.rollback()
+				return ERROR_NUM['failToContinue']
+			execute = TbBorrow.query(BorrowID=borrowID).update({'ldContinueTimes':borrow.ldContinueTimes+1})
+			if execute is 0:
+				db.session.rollback()
+				return ERROR_NUM['failToContinue']
+		except:
+			db.session.rollback()
+			return ERROR_NUM['failToContinue']
