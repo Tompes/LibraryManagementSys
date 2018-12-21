@@ -28,6 +28,8 @@ ERROR_NUM = {
 	'userStatusError':{'error':27,'msg':'用户状态不可用！'},
 	'failToReRegister':{'error':28,'msg':'补办借书证失败！'},
 	'failToCreateUserType':{'error':29,'msg':'创建用户类型失败'},
+	'failToUpdateUserType':{'error':30,'msg':'修改用户类型失败'},
+	'failToBackUp':{'error':31,'msg':'备份失败！'},
 	'unknow':{'error':-1,'msg':'UnKnow Error 1'},
 	'e2':{'error':-2,'msg':''},
 	'SQLOperate':{'error':-3,'msg':'Internal SQL Operational Error'}

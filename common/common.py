@@ -15,6 +15,12 @@ bookStatusTable = [
 	'变卖',
 	'销毁'
 ]
+tableList = [
+	'Tb_Book',
+	'Tb_Borrow',
+	'Tb_Reader',
+	'Tb_ReaderType'
+]
 emailReg = r'^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+){0,4}@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+){0,4}$'  # 邮箱验证
 
 

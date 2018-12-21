@@ -127,8 +127,39 @@ class UserTypeList(Resource):
 			return {'error':0,'msg':'创建用户类型成功！','createData':args}
 		except Exception as e:
 			db.session.rollback()
-			raise e
 			return ERROR_NUM['failToCreateUserType']
+
+	def put(self,rdType=None):
+		if rdType is None:
+			return ERROR_NUM['paramsErr']
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8:
+			return ERROR_NUM['noPermission']
+		parser = reqparse.RequestParser(trim=True)
+		# parser.add_argument('rdType', type=int, required=True, help="params `rdType` refuse!")
+		parser.add_argument('rdTypeName', type=str, required=False, help="params `rdTypeName` refuse!")
+		parser.add_argument('CanLendQty', type=int, required=False, help="params `CanLendQty` refuse!")
+		parser.add_argument('CanLendDay', type=int, required=False, help="params `CanLendDay` refuse!")
+		parser.add_argument('CanContinueTimes', type=int, required=False, help="params `CanContinueTimes` refuse!")
+		parser.add_argument('PunishRate', type=float, required=False, help="params `PunishRate` refuse!")
+		parser.add_argument('DateValid', type=int, required=False, help="params `DateValid` refuse!")
+		args = parser.parse_args(strict=True)
+		putData = {}
+		for item in args:
+			if args[item] is not None:
+				putData[item] = args[item]
+		if len(putData) ==0:
+			return ERROR_NUM['paramsErr']
+		try:
+			execute = TbReaderType.query.filter_by(rdType=rdType).update(putData)
+			if execute == 0 :
+				return ERROR_NUM['failToUpdateUserType']
+			db.session.commit()
+			return {'error':0,'msg':'修改成功！','updatedDate':putData}
+		except Exception as e:
+			db.session.rollback()
+			return ERROR_NUM['failToUpdateUserType']
 
 class User(Resource):
 	def get(self, rdID=None):
