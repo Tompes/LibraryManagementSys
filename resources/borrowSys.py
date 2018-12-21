@@ -1,3 +1,4 @@
+from flask import session
 from flask_restful import Resource, reqparse
 from common.models import TbReaderType
 from common.models import TbBook
@@ -16,6 +17,10 @@ from config.dbconfig import db
 
 class BorrowList(Resource):
 	def get(self, lsHasReturn=None):
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 4:
+			return ERROR_NUM['noPermission']
 		type = '所有记录'
 		try:
 			borrow = []
@@ -56,6 +61,10 @@ class Borrow(Resource):
 	def get(self, borrowID=None):
 		if borrowID is None:
 			return ERROR_NUM['paramsErr']
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 4:
+			return ERROR_NUM['noPermission']
 		try:
 			borrow = TbBorrow.query.filter_by(borrowID=borrowID).first()
 			if borrow is None:
@@ -82,7 +91,10 @@ class Borrow(Resource):
 	def post(self, borrowID=None):
 		if borrowID is not None:
 			return ERROR_NUM['paramsErr']
-
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 4:
+			return ERROR_NUM['noPermission']
 		parser = reqparse.RequestParser(trim=True)
 		parser.add_argument('rdID', type=int, required=True, help="params `rdID` refuse!")
 		parser.add_argument('bkID', type=int, required=True, help="params `bkID` refuse!")
@@ -106,6 +118,7 @@ class Borrow(Resource):
 				return ERROR_NUM['bookStatusErr']
 		except:
 			return ERROR_NUM['SQLOperate']
+
 		timeStamp = time.time()
 		timeArray = time.localtime(timeStamp)
 		segment = TbBorrow(
@@ -145,41 +158,57 @@ class Borrow(Resource):
 				'rdID': segment.rdID,
 				'bkID': segment.bkID,
 				'bkName': bkInfo.bkName,
-				'ldDateRetPlan': segment.ldDateRetPlan
+				'ldDateRetPlan': str(segment.ldDateRetPlan)
 			}
-		except:
+		except Exception as e:
 			db.session.rollback()
 			return ERROR_NUM['failToBorrowBook']
 
-	def put(self, borrowID=None):  # 续借、修改借阅信息
+	def put(self, borrowID=None):  # 续借
 		if borrowID is None:
 			return ERROR_NUM['paramsErr']
-		parser = reqparse.RequestParser(trim=True)
-		parser.add_argument('ldContinueTimes', type=int, required=False, help="params `ldContinueTimes` refuse!")
-		parser.add_argument('ldDateRetPlan', type=str, required=False, help="params `ldDateRetPlan` refuse!")
-		# parser.add_argument('ldOverDay', type=int, required=True, help="params `rdID` refuse!")
-		parser.add_argument('ldOverMoney', type=float, required=False, help="params `ldOverMoney` refuse!")
-		parser.add_argument('ldPunishMoney', type=float, required=False, help="params `ldPunishMoney` refuse!")
-		parser.add_argument('lsHasReturn', type=int, required=False, help="params `lsHasReturn` refuse!")
-		parser.add_argument('OperatorLend', type=str, required=False, help="params `OperatorLend` refuse!")
-		parser.add_argument('OperatorRet', type=str, required=False, help="params `OperatorRet` refuse!")
-
-		args = parser.parse_args(strict=True)
-		putData = {}
-		for item in args:
-			if args[item] is not None and args[item] != '':
-				putData[item] = args[item]
-
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 4:
+			return ERROR_NUM['noPermission']
 		try:
-			borrow = TbBorrow.query.filter_by(borrowID=borrowID).first()
+			borrow = TbBorrow.query.filter_by(BorrowID=borrowID).first()
 			if borrow is None:
 				return ERROR_NUM['borrowSegmentNotExist']
-			execute = TbBorrow.query.filter_by(borrowID=borrowID).update(putData)
+			reader = TbReader.query.filter_by(rdID=borrow.rdID).first()
+			if reader is None:
+				return ERROR_NUM['userNotExist']
+			readerType = TbReaderType.query.filter_by(rdType=reader.rdType).first()
+			print(borrow.ldContinueTimes)
+			if borrow.ldContinueTimes >= readerType.CanContinueTimes:
+				return ERROR_NUM['limitOfArrival']
+			if reader.rdStatus != userStatusTable[1]:
+				return ERROR_NUM['forbiddenOperation']
+
+			continueDate = borrow.ldDateRetPlan + datetime.timedelta(days=readerType.CanLendDay)
+			execute = TbBorrow.query.filter_by(BorrowID=borrowID).update({
+				'ldContinueTimes': borrow.ldContinueTimes + 1,
+				'ldDateRetPlan': continueDate.strftime('%Y-%m-%d %H:%M:%S')
+			})
 			if execute is 0:
-				return ERROR_NUM['failToUpdateBorrowSegment']
-			return {'error': 0, 'msg': '更新成功！', 'borrowID': borrowID, 'updateData': putData}
-		except:
-			return ERROR_NUM['SQLOperate']
+				db.session.rollback()
+				return ERROR_NUM['failToContinue']
+			execute = TbBorrow.query.filter_by(BorrowID=borrowID).update({'ldContinueTimes': borrow.ldContinueTimes + 1})
+			if execute is 0:
+				db.session.rollback()
+				return ERROR_NUM['failToContinue']
+			db.session.commit()
+			return {
+				'error': 0,
+				'msg': '续借成功',
+				'ldDateRetPlan': str(continueDate.strftime('%Y-%m-%d %H:%M:%S')),
+				'remainCanContinueTime': borrow.ldContinueTimes - borrow.ldContinueTimes
+			}
+		except Exception as e:
+			db.session.rollback()
+			raise e
+			return ERROR_NUM['failToContinue']
+
 
 	def delete(self, borrowID=None):  # 还书功能。 借书元组不用删除，永久保存.
 		parser = reqparse.RequestParser(trim=True)
@@ -189,6 +218,10 @@ class Borrow(Resource):
 		if borrowID is None:
 			return ERROR_NUM['paramsErr']
 
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 4:
+			return ERROR_NUM['noPermission']
 		try:
 			borrow = TbBorrow.query.filter_by(BorrowID=borrowID).first()
 			if borrow is None:
@@ -236,36 +269,78 @@ class Borrow(Resource):
 			return ERROR_NUM['failToReturnBook']
 
 
-class BookContinue(Resource):
-	def put(self, borrowID=None):
-		if borrowID is None:
-			return ERROR_NUM['borrowSegmentNotExist']
-		try:
-			borrow = TbBorrow.query.filter_by(BorrowID=borrowID).first()
-			if borrow is None:
-				return ERROR_NUM['borrowSegmentNotExist']
-			reader = TbReader.query.filter_by(rdID=borrow.rdID).first()
-			if reader is None:
-				return ERROR_NUM['userNotExist']
-			readerType = TbReaderType.query.filter_by(rdType=reader.rdType).first()
+		#def put():
+		# if borrowID is None:
+		# 	return ERROR_NUM['paramsErr']
+		# if 'userinfo' not in session:
+		# 	return ERROR_NUM['hasNotLogin']
+		# if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 4:
+		# 	return ERROR_NUM['noPermission']
+		# parser = reqparse.RequestParser(trim=True)
+		# parser.add_argument('ldContinueTimes', type=int, required=False, help="params `ldContinueTimes` refuse!")
+		# parser.add_argument('ldDateRetPlan', type=str, required=False, help="params `ldDateRetPlan` refuse!")
+		# # parser.add_argument('ldOverDay', type=int, required=True, help="params `rdID` refuse!")
+		# parser.add_argument('ldOverMoney', type=float, required=False, help="params `ldOverMoney` refuse!")
+		# parser.add_argument('ldPunishMoney', type=float, required=False, help="params `ldPunishMoney` refuse!")
+		# parser.add_argument('lsHasReturn', type=int, required=False, help="params `lsHasReturn` refuse!")
+		# parser.add_argument('OperatorLend', type=str, required=False, help="params `OperatorLend` refuse!")
+		# parser.add_argument('OperatorRet', type=str, required=False, help="params `OperatorRet` refuse!")
+		#
+		# args = parser.parse_args(strict=True)
+		# putData = {}
+		# for item in args:
+		# 	if args[item] is not None and args[item] != '':
+		# 		putData[item] = args[item]
+		#
+		# try:
+		# 	borrow = TbBorrow.query.filter_by(borrowID=borrowID).first()
+		# 	if borrow is None:
+		# 		return ERROR_NUM['borrowSegmentNotExist']
+		# 	execute = TbBorrow.query.filter_by(borrowID=borrowID).update(putData)
+		# 	if execute is 0:
+		# 		return ERROR_NUM['failToUpdateBorrowSegment']
+		# 	return {'error': 0, 'msg': '更新成功！', 'borrowID': borrowID, 'updateData': putData}
+		# except:
+		# 	return ERROR_NUM['SQLOperate']
 
-			if borrow.ldContinueTimes >= readerType.CanContinueTimes:
-				return ERROR_NUM['limitOfArrival']
-			if reader.rdStatus != userStatusTable[1]:
-				return ERROR_NUM['forbiddenOperation']
 
-			continueDate = dateParser.parse(borrow.ldDateRetPlan) + datetime.timedelta(days=readerType.CanLendDay)
-			execute = TbBorrow.query.filter_by(BorrowID=borrowID).update({
-				'ldContinueTimes':borrow.ldContinueTimes+1,
-				'ldDateRetPlan':continueDate.strftime('%Y-%m-%d %H:%M:%S')
-			})
-			if execute is 0:
-				db.session.rollback()
-				return ERROR_NUM['failToContinue']
-			execute = TbBorrow.query(BorrowID=borrowID).update({'ldContinueTimes':borrow.ldContinueTimes+1})
-			if execute is 0:
-				db.session.rollback()
-				return ERROR_NUM['failToContinue']
-		except:
-			db.session.rollback()
-			return ERROR_NUM['failToContinue']
+
+# class BookContinue(Resource):
+# 	def put(self, borrowID=None):
+# 		if borrowID is None:
+# 			return ERROR_NUM['borrowSegmentNotExist']
+# 		try:
+# 			borrow = TbBorrow.query.filter_by(BorrowID=borrowID).first()
+# 			if borrow is None:
+# 				return ERROR_NUM['borrowSegmentNotExist']
+# 			reader = TbReader.query.filter_by(rdID=borrow.rdID).first()
+# 			if reader is None:
+# 				return ERROR_NUM['userNotExist']
+# 			readerType = TbReaderType.query.filter_by(rdType=reader.rdType).first()
+#
+# 			if borrow.ldContinueTimes >= readerType.CanContinueTimes:
+# 				return ERROR_NUM['limitOfArrival']
+# 			if reader.rdStatus != userStatusTable[1]:
+# 				return ERROR_NUM['forbiddenOperation']
+#
+# 			continueDate = dateParser.parse(borrow.ldDateRetPlan) + datetime.timedelta(days=readerType.CanLendDay)
+# 			execute = TbBorrow.query.filter_by(BorrowID=borrowID).update({
+# 				'ldContinueTimes': borrow.ldContinueTimes + 1,
+# 				'ldDateRetPlan': continueDate.strftime('%Y-%m-%d %H:%M:%S')
+# 			})
+# 			if execute is 0:
+# 				db.session.rollback()
+# 				return ERROR_NUM['failToContinue']
+# 			execute = TbBorrow.query(BorrowID=borrowID).update({'ldContinueTimes': borrow.ldContinueTimes + 1})
+# 			if execute is 0:
+# 				db.session.rollback()
+# 				return ERROR_NUM['failToContinue']
+# 			return {
+# 				'error': 0,
+# 				'msg': '续借成功',
+# 				'ldDateRetPlan': continueDate.strftime('%Y-%m-%d %H:%M:%S'),
+# 				'remainCanContinueTime': borrow.ldContinueTimes - (borrow.ldContinueTimes+1)
+# 			}
+# 		except:
+# 			db.session.rollback()
+# 			return ERROR_NUM['failToContinue']

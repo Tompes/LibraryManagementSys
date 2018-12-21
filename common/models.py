@@ -64,7 +64,7 @@ class TbReader(db.Model):
     rdPhone = db.Column(db.Unicode(25))
     rdEmail = db.Column(db.Unicode(25))
     rdDateReg = db.Column(db.DateTime)
-    rdPhoto = db.Column(db.String(100, 'Chinese_PRC_CI_AS'))
+    rdPhoto = db.Column(db.Text(2147483647, 'Chinese_PRC_CI_AS'))
     rdStatus = db.Column(db.Unicode(2))
     rdBorrowQty = db.Column(db.Integer, server_default=db.FetchedValue())
     rdPwd = db.Column(db.Unicode(36), server_default=db.FetchedValue())
@@ -75,8 +75,8 @@ class TbReader(db.Model):
 
 class TbReaderType(db.Model):
     __tablename__ = 'Tb_ReaderType'
-
-    rdType = db.Column(db.SmallInteger, primary_key=True)
+    typeID = db.Column(db.Integer, primary_key=True)
+    rdType = db.Column(db.SmallInteger,nullable=False, unique=True, primary_key=True)
     rdTypeName = db.Column(db.Unicode(20), nullable=False, unique=True)
     CanLendQty = db.Column(db.Integer)
     CanLendDay = db.Column(db.Integer)

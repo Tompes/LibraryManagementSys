@@ -22,7 +22,12 @@ ERROR_NUM = {
 	'failTOGetTypeList':{'error':21,'msg':'获取用户类型列表失败！'},
 	'failToContinue':{'error':22,'msg':'续借失败！'},
 	'forbiddenOperation':{'error':23,'msg':'操作被禁止！'},
-	'limitOfArrival':{'error':23,'msg':'已到达上限值！'},
+	'limitOfArrival':{'error':24,'msg':'已到达上限值！'},
+	'hasNotLogin':{'error':25,'msg':'请登录！'},
+	'noPermission':{'error':26,'msg':'未授权的操作！'},
+	'userStatusError':{'error':27,'msg':'用户状态不可用！'},
+	'failToReRegister':{'error':28,'msg':'补办借书证失败！'},
+	'failToCreateUserType':{'error':29,'msg':'创建用户类型失败'},
 	'unknow':{'error':-1,'msg':'UnKnow Error 1'},
 	'e2':{'error':-2,'msg':''},
 	'SQLOperate':{'error':-3,'msg':'Internal SQL Operational Error'}

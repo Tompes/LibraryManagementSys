@@ -1,3 +1,4 @@
+from flask import session
 from flask_restful import Resource, reqparse
 from common.models import TbReaderType
 from common.models import TbBook
@@ -31,12 +32,15 @@ class BookList(Resource):
 				filterArgs[item] = args[item]
 		t = ''
 		i = 0
+		if len(filterArgs) == 0:  # 搜索模式未给参数
+			return ERROR_NUM['paramsErr']
 		for k in filterArgs.keys():
 			if i == 0:
 				t += k + " like '%" + addslashes(filterArgs[k]) + "%' "
 			else:
 				t += " and " + k + " like '%" + addslashes(filterArgs[k]) + "%' "
 			i += 1
+
 		try:
 			books = []
 			if search is None:
@@ -45,7 +49,7 @@ class BookList(Resource):
 				print('select * from Tb_Book where {0}'.format(t))
 				books = db.session.execute('select * from Tb_Book where {0}'.format(t))
 			bookList = []
-			for item in books:
+			for item in books.fetchmany(100):
 				verb = {
 					'bkID': item.bkID,
 					'bkCode': item.bkCode,
@@ -72,7 +76,7 @@ class BookList(Resource):
 class Book(Resource):
 	def get(self, bkID=None):
 		if bkID is None:
-			return ERROR_NUM['paramsErr'], 400
+			return ERROR_NUM['paramsErr']
 		try:
 			book = TbBook.query.filter_by(bkID=bkID).first()
 			if book is None:
@@ -101,7 +105,10 @@ class Book(Resource):
 	def post(self, bkID=None):
 		if bkID is not None:
 			return ERROR_NUM['paramsErr']
-
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 2:
+			return ERROR_NUM['noPermission']
 		parser = reqparse.RequestParser(trim=True)
 		parser.add_argument('bkCode', type=str, required=True, help="params `bkCode` refuse!")
 		parser.add_argument('bkName', type=str, required=True, help="params `bkName` refuse!")
@@ -158,7 +165,10 @@ class Book(Resource):
 	def put(self, bkID=None):
 		if bkID is None:
 			return ERROR_NUM['paramsErr']
-
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 2:
+			return ERROR_NUM['noPermission']
 		parser = reqparse.RequestParser(trim=True)
 		parser.add_argument('bkCode', type=str, required=False, help="params `bkCode` refuse!")
 		parser.add_argument('bkName', type=str, required=False, help="params `bkName` refuse!")
@@ -178,7 +188,7 @@ class Book(Resource):
 		args = parser.parse_args(strict=True)
 
 		if 'bkID' in args or len(args) < 1:
-			return ERROR_NUM['paramsErr'], 400
+			return ERROR_NUM['paramsErr']
 
 		putData = {}
 
@@ -186,7 +196,7 @@ class Book(Resource):
 			if args[item] is not None:
 				if item == 'bkStatus':
 					if args['bkStatus'] > len(bookStatusTable):
-						return ERROR_NUM['paramsErr'], 400
+						return ERROR_NUM['paramsErr']
 					args[item] = bookStatusTable[args[item]]
 				putData[item] = args[item]
 
@@ -197,17 +207,22 @@ class Book(Resource):
 
 			execute = TbBook.query.filter_by(bkID=bkID).update(putData)
 			if execute is 0:
-				return ERROR_NUM['failToUpdateBook'], 400
+				return ERROR_NUM['failToUpdateBook']
 			db.session.flush()
 			db.session.commit()
 			return {'error': 0, 'msg': '更新书籍信息成功！', 'bkID':bkID ,'updateData': putData}
 		except:
 			db.session.rollback()
-			return ERROR_NUM['SQLOperate'], 500
+			return ERROR_NUM['SQLOperate']
 
 	def delete(self, bkID=None):
 		if bkID is None:
 			return ERROR_NUM['paramsErr']
+
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and session['userinfo']['rdAdminRoles'] != 2:
+			return ERROR_NUM['noPermission']
 		try:
 			book = TbBook.query.filter_by(bkID=bkID).first()
 			if book is None:

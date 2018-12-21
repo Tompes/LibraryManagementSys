@@ -1,3 +1,4 @@
+from flask import session
 from flask_restful import Resource, reqparse
 from common.models import TbReaderType
 from common.models import TbBook
@@ -8,17 +9,22 @@ from common.errorTable import ERROR_NUM
 from common.common import defaultPhoto, userStatusTable, emailReg, addslashes
 import sqlalchemy as SQL
 import time
+import datetime
 import re
 from config.dbconfig import db
 
 
 class UserList(Resource):
 	def get(self, search=None):
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8:
+			return ERROR_NUM['noPermission']
 		parser = reqparse.RequestParser(trim=True)
 		parser.add_argument('rdName', type=str, required=False, help="params `rdName` refuse!")
 		parser.add_argument('rdDept', type=str, required=False, help="params `rdDept` refuse!")
-		parser.add_argument('rdPhone', type=str, required=False, help="params `rdPhone` refuse!")
-		parser.add_argument('rdEmail', type=str, required=False, help="params `rdPhone` refuse!")
+		parser.add_argument('rdType', type=str, required=False, help="params `rdType` refuse!")
+		parser.add_argument('rdID', type=str, required=False, help="params `rdID` refuse!")
 		args = parser.parse_args(strict=True)
 
 		filterArgs = {}
@@ -27,7 +33,7 @@ class UserList(Resource):
 				filterArgs[item] = args[item]
 		t = ''
 		i = 0
-		if len(filterArgs) == 0: #搜索模式未给参数
+		if len(filterArgs) == 0:  # 搜索模式未给参数
 			return ERROR_NUM['paramsErr']
 		for k in filterArgs.keys():
 			if i == 0:
@@ -42,11 +48,11 @@ class UserList(Resource):
 			if search == 'search':
 				print('select * from Tb_Reader where {0}'.format(t))
 				data = db.session.execute('select * from Tb_Reader where {0}'.format(t))
-
+			# data = db.session.execute('select * from Tb_Reader')
 			if data is None:
 				return ERROR_NUM['queryFail']
 			userList = []
-			for item in data:
+			for item in data.fetchmany(10):
 				user = {
 					'rdID': item.rdID,
 					'rdName': item.rdName,
@@ -63,9 +69,12 @@ class UserList(Resource):
 				}
 				# user['rdPwd'] = item.rdPwd
 				userList.append(user)
+				db.session.commit()
 			return {'error': 0, 'userList': userList}, 200
 		except:
-			return ERROR_NUM['failToGetUserList'], 500
+			db.session.rollback()
+			return ERROR_NUM['failToGetUserList']
+
 
 class UserTypeList(Resource):
 	def get(self):
@@ -74,42 +83,101 @@ class UserTypeList(Resource):
 			readerType = TbReaderType.query.all()
 			for item in readerType:
 				verb = {
-					'rdType' : item.rdType,
-					'rdTypeName' : item.rdType,
-					'CanLendQty' :item.rdType,
-					'CanLendDay' :item.rdType,
-					'CanContinueTimes' :item.rdType,
-					'PunishRate' :item.rdType,
-					'DateValid' :item.rdType,
+					'rdType': item.rdType,
+					'typeValue':item.rdType,
+					'rdTypeName': item.rdTypeName,
+					'typeKey':item.rdTypeName,
+					'CanLendQty': item.CanLendQty,
+					'CanLendDay': item.CanLendDay,
+					'CanContinueTimes': item.CanContinueTimes,
+					'PunishRate': item.PunishRate,
+					'DateValid': item.DateValid,
 				}
 				typeList.append(verb)
+			return {'error':0,'typeList':typeList}
 		except:
 			return ERROR_NUM['failTOGetTypeList']
+
+	def post(self):
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8:
+			return ERROR_NUM['noPermission']
+		parser = reqparse.RequestParser(trim=True)
+		parser.add_argument('rdType', type=int, required=True, help="params `rdType` refuse!")
+		parser.add_argument('rdTypeName', type=str, required=True, help="params `rdTypeName` refuse!")
+		parser.add_argument('CanLendQty', type=int, required=True, help="params `CanLendQty` refuse!")
+		parser.add_argument('CanLendDay', type=int, required=True, help="params `CanLendDay` refuse!")
+		parser.add_argument('CanContinueTimes', type=int, required=True, help="params `CanContinueTimes` refuse!")
+		parser.add_argument('PunishRate', type=float, required=True, help="params `PunishRate` refuse!")
+		parser.add_argument('DateValid', type=int, required=True, help="params `DateValid` refuse!")
+		args = parser.parse_args(strict=True)
+		segment = TbReaderType(
+			rdType=args['rdType'],
+			rdTypeName=args['rdTypeName'],
+			CanLendQty=args['CanLendQty'],
+			CanLendDay=args['CanLendDay'],
+			CanContinueTimes=args['CanContinueTimes'],
+			PunishRate=args['PunishRate'],
+			DateValid=args['DateValid']
+		)
+		try:
+			db.session.add(segment)
+			db.session.commit()
+			return {'error':0,'msg':'创建用户类型成功！','createData':args}
+		except Exception as e:
+			db.session.rollback()
+			raise e
+			return ERROR_NUM['failToCreateUserType']
+
 class User(Resource):
 	def get(self, rdID=None):
 		if rdID is None:
 			return ERROR_NUM['paramsErr']
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8 and rdID != session['userinfo']['rdID']:
+			return ERROR_NUM['noPermission']
 		try:
 			user = TbReader.query.filter_by(rdID=rdID).first()
+
 			if user is None:
 				return ERROR_NUM['userNotExist']
-			doNotReturnedQuery = TbBorrow.query.filter_by(rdID=rdID, lsHasReturn=0).all()
+			doNotReturnedQuery = TbBorrow.query.filter_by(rdID=rdID, lsHasReturn=False).all()
 			doNotReturnedBooks = []
+			rdType = TbReaderType.query.filter_by(rdType=user.rdType).first()
 			for item in doNotReturnedQuery:
 				book = TbBook.query.filter_by(bkID=item.bkID).first()
 				verb = {
-					'borrowID': item.BorrowID,
+					'rdID': rdID,
+					'BorrowID': item.BorrowID,
 					'bkID': item.bkID,
+					'bkCode': book.bkCode,
 					'bkName': book.bkName,
+					'bkAuthor': book.bkAuthor,
 					'ldContinueTimes': item.ldContinueTimes,
-					'ldDateOut': item.ldDateOut,
-					'ldDateRetPlan': item.ldDateRetPlan,
+					'ldDateOut': str(item.ldDateOut),
+					'ldDateRetPlan': str(item.ldDateRetPlan),
 					'ldOverDay': item.ldOverDay,
+					'ldOverMoney': float(item.ldOverMoney),
+					'bkStatus': book.bkStatus
 				}
+				now = datetime.datetime.strptime(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+				                                 '%Y-%m-%d %H:%M:%S')
+				if now > datetime.datetime.strptime(str(item.ldDateRetPlan), '%Y-%m-%d %H:%M:%S'):
+					d = now - datetime.datetime.strptime(str(item.ldDateRetPlan), '%Y-%m-%d %H:%M:%S')
+					verb['ldOverDay'] = str(d.days)
+					verb['ldOverMoney'] = d.days * 0.1 * (1 - rdType.PunishRate)  # 1毛乘以比率
+					print(d.days)
+					TbBorrow.query.filter_by(BorrowID=item.BorrowID).update({
+						'ldOverDay' : verb['ldOverDay'],
+						'ldOverMoney' : verb['ldOverMoney']
+					})
+					db.session.commit()
+
 				doNotReturnedBooks.append(verb)
 
 			userInfo = {
-				'error': 0,
 				'rdID': user.rdID,
 				'rdName': user.rdName,
 				'rdSex': user.rdSex,
@@ -119,17 +187,23 @@ class User(Resource):
 				'rdEmail': user.rdEmail,
 				'rdPhoto': user.rdPhoto,
 				'rdStatus': user.rdStatus,
+				'rdBorrowQty': user.rdBorrowQty,
+				'CanLendQty': rdType.CanLendQty,
 				'rdAdminRoles': user.rdAdminRoles,
 				'doNotReturnedBooks': doNotReturnedBooks
 			}
 			return {'error': 0, 'userInfo': userInfo}
 
 		except SQL.exc.OperationalError as e:
-			return ERROR_NUM['SQLOperate'], 500
+			return ERROR_NUM['SQLOperate']
 
 	def post(self, rdID=None):
 		if rdID != None:
 			return ERROR_NUM['paramsErr']
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8:
+			return ERROR_NUM['noPermission']
 		parser = reqparse.RequestParser(trim=True)
 		parser.add_argument('rdName', type=str, required=True, help="params `rdName` refuse!")
 		parser.add_argument('rdSex', type=str, required=True, help="params `rdSex` refuse!")
@@ -176,19 +250,21 @@ class User(Resource):
 			db.session.add(segment)
 			db.session.flush()
 			db.session.commit()
-			return {'error': 0, 'msg': 'Yes', 'rdId': segment.rdID}
+			return {'error': 0, 'msg': 'Yes', 'rdID': segment.rdID}
 		except:
 			db.session.rollback()  # 回滚
-			return ERROR_NUM['failToCreateUser'], 400
+			return ERROR_NUM['failToCreateUser']
 
 	def put(self, rdID=None):
 		if rdID is None:
 			return ERROR_NUM['paramsErr']
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
 
 		parser = reqparse.RequestParser(trim=True)
 		parser.add_argument('rdName', type=str, required=False, help="params `rdName` refuse!")
 		parser.add_argument('rdSex', type=str, required=False, help="params `rdSex` refuse!")
-		parser.add_argument('rdType', type=int, required=False, help="params `rdType` refuse!")
+		parser.add_argument('rdType', type=str, required=False, help="params `rdType` refuse!")
 		parser.add_argument('rdDept', type=str, required=False, help="params `rdDept` refuse!")
 		parser.add_argument('rdPhone', type=str, required=False, help="params `rdPhone` refuse!")
 		parser.add_argument('rdEmail', type=str, required=False, help="params `rdEmail` refuse!")
@@ -199,17 +275,17 @@ class User(Resource):
 
 		args = parser.parse_args(strict=True)
 		if rdID in args or len(args) < 1:
-			return ERROR_NUM['paramsErr'], 400
+			return ERROR_NUM['paramsErr']
 
 		putData = {}
 		for item in args:
-			if args[item] is not None and args[item]!= '':
+			if args[item] is not None and args[item] != '':
 				if item == 'rdEmail' and re.match(emailReg, args['rdEmail']) == False:
-					return ERROR_NUM['paramsErr'], 400
+					return ERROR_NUM['paramsErr']
 
 				if item == 'rdStatus':
 					if args['rdStatus'] > len(userStatusTable):
-						return ERROR_NUM['paramsErr'], 400
+						return ERROR_NUM['paramsErr']
 					args[item] = userStatusTable[args[item]]
 				if item == 'rdPwd':
 					m = md5()
@@ -218,31 +294,79 @@ class User(Resource):
 					args[item] = rdpwd
 
 				putData[item] = args[item].strip()
-		if len(putData)==0:
-			return ERROR_NUM['paramsErr'], 400
+		if len(putData) == 0:
+			return ERROR_NUM['paramsErr']
+		if session['userinfo']['rdAdminRoles'] != 8:
+			if 'rdPwd' in putData and len(putData) > 1:
+				return ERROR_NUM['noPermission']
+			elif 'rdPwd' not in putData and len(putData) > 1:
+				return ERROR_NUM['noPermission']
 		try:
 			user = TbReader.query.filter_by(rdID=rdID).first()
 			if user is None:
 				return ERROR_NUM['userNotExist']
 			execute = TbReader.query.filter_by(rdID=rdID).update(putData)
 			if execute is 0:
-				return ERROR_NUM['failToUpdateUser'], 400
+				return ERROR_NUM['failToUpdateUser']
 			db.session.commit()
 			return {'error': 0, 'msg': '更新用户信息成功！', 'rdID': rdID, 'updateData': putData}
 		except SQL.exc.OperationalError as e:
 			db.session.rollback()
-			return ERROR_NUM['SQLOperate'], 500
+			return ERROR_NUM['SQLOperate']
 
 	def delete(self, rdID=None):
 		if rdID is None:
 			return ERROR_NUM['paramsErr']
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8:
+			return ERROR_NUM['noPermission']
 		try:
 			execute = TbReader.query.filter_by(rdID=rdID).delete()
 			if execute is 0:
 				db.session.rollback()
 				return ERROR_NUM['failToDeleteUser']
 			db.session.commit()
-			return {'error': '0', 'msg': '删除用户成功！', 'rdID': rdID}
+			return {'error': 0, 'msg': '删除用户成功！', 'rdID': rdID}
 		except:
 			db.session.rollback()
-			return ERROR_NUM['SQLOperate'], 500
+			return ERROR_NUM['SQLOperate']
+
+
+class reRegister(Resource):
+	def post(self, rdID=None):
+		if rdID is None and rdID != '':
+			return ERROR_NUM['paramsErr']
+		if 'userinfo' not in session:
+			return ERROR_NUM['hasNotLogin']
+		if session['userinfo']['rdAdminRoles'] != 8:
+			return ERROR_NUM['noPermission']
+		try:
+			reader = TbReader.query.filter_by(rdID=rdID).first()
+			if reader is None:
+				return ERROR_NUM['userNotExist']
+			if reader.rdStatus == '注销':
+				return ERROR_NUM['userStatusError']
+			segment = TbReader(
+				rdName=reader.rdName,
+				rdSex=reader.rdSex,
+				rdType=reader.rdType,
+				rdDept=reader.rdDept,
+				rdPhone=reader.rdPhone,
+				rdEmail=reader.rdEmail,
+				rdDateReg=reader.rdDateReg,
+				rdPhoto=reader.rdPhoto,
+				rdStatus=reader.rdStatus,
+				rdBorrowQty=reader.rdBorrowQty,
+				rdPwd=reader.rdPwd,
+				rdAdminRoles=reader.rdAdminRoles
+			)
+			execute = db.session.add(segment)
+			db.session.flush()
+			dispear = TbReader.query.filter_by(rdID=rdID).update({'rdStatus': '注销'})
+			borrow = TbBorrow.query.filter_by(rdID=rdID).update({'rdID': segment.rdID})
+			db.session.commit()
+			return {'error': 0, 'msg': '补办成功！', 'oldRdID': rdID, 'newRdID': segment.rdID}
+		except:
+			db.session.rollback()
+			return ERROR_NUM['failToReRegister']
