@@ -23,13 +23,16 @@ class BackUp(Resource):
 		print(sql)
 		try:
 			if Table == 'Tb_Book':
-				db.session.execute(sql)
+				data = db.session.execute(sql)
 				return
 			elif Table == 'Tb_Borrow':
+				data = db.session.execute(sql)
 				return
 			elif Table == 'Tb_Reader':
+				data = db.session.execute(sql)
 				return
 			elif Table == 'Tb_ReaderType':
+				data = db.session.execute(sql)
 				return
 			else:
 				return ERROR_NUM['paramsErr']

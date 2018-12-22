@@ -94,8 +94,10 @@ class UserTypeList(Resource):
 					'DateValid': item.DateValid,
 				}
 				typeList.append(verb)
+				db.session.close()
 			return {'error':0,'typeList':typeList}
 		except:
+			db.session.close()
 			return ERROR_NUM['failTOGetTypeList']
 
 	def post(self):
