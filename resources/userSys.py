@@ -366,7 +366,7 @@ class User(Resource):
 			return ERROR_NUM['SQLOperate']
 
 
-class reRegister(Resource):
+class Reissue(Resource):
 	def post(self, rdID=None):
 		if rdID is None and rdID != '':
 			return ERROR_NUM['paramsErr']

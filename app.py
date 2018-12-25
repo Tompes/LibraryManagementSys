@@ -8,7 +8,7 @@ import flask_restful as restful
 from flask_cors import *
 from flask import make_response
 from resources.loginSys import Login
-from resources.userSys import UserList,User,reRegister,UserTypeList
+from resources.userSys import UserList,User,Reissue,UserTypeList
 from resources.booksSys import BookList,Book
 from resources.borrowSys import BorrowList,Borrow
 from hashlib import md5
@@ -39,7 +39,7 @@ api.add_resource(Login,'/login')
 api.add_resource(UserList,'/userlist/<string:search>','/userlist')
 api.add_resource(User,'/user/<int:rdID>','/user')
 api.add_resource(UserTypeList,'/usertype/<int:rdType>','/usertype')
-api.add_resource(reRegister,'/reissue/<int:rdID>','/reissue')
+api.add_resource(Reissue,'/reissue/<int:rdID>','/reissue')
 api.add_resource(BookList,'/booklist/<string:search>','/booklist')
 api.add_resource(Book,'/book/<int:bkID>','/book')
 api.add_resource(BorrowList,'/borrowlist/<int:lsHasReturn>','/borrowlist')
